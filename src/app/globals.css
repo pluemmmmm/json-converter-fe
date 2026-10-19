@@ -24,3 +24,49 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Water droplet jelly floating bounce on hover (from aom-bet-admin-fe) */
+@keyframes waterDropBounce {
+  0% {
+    transform: translateY(0) scale(1, 1);
+  }
+  20% {
+    transform: translateY(-5px) scale(0.96, 1.06); /* ยืดตัวขึ้นนุ่มนวลแบบหยดน้ำ */
+  }
+  45% {
+    transform: translateY(-1.5px) scale(1.04, 0.96); /* หย่อนลงพร้อมแผ่ออกด้านข้าง */
+  }
+  70% {
+    transform: translateY(-3.5px) scale(0.99, 1.02); /* เด้งระลอกสองอย่างละมุน */
+  }
+  88% {
+    transform: translateY(-2.2px) scale(1.01, 0.99); /* ลดทอนแรงกระเพื่อม */
+  }
+  100% {
+    transform: translateY(-2.5px) scale(1.02, 1.02); /* ลอยตัวคงที่เบาๆ สวยงาม */
+  }
+}
+
+.btn-bounce,
+.app-button {
+  will-change: transform, box-shadow;
+  transition:
+    transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    color 0.25s ease;
+}
+
+.btn-bounce:not(:disabled):hover,
+.app-button:not(:disabled):hover {
+  animation: waterDropBounce 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.btn-bounce:not(:disabled):active,
+.app-button:not(:disabled):active {
+  animation: none !important;
+  transform: translateY(1.5px) scale(0.96, 0.93) !important;
+  transition: transform 0.1s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+

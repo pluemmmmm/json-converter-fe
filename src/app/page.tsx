@@ -1,69 +1,186 @@
-import Image from "next/image";
+"use client";
+
+import React, { useState, useSyncExternalStore } from "react";
+import { TopNav } from "@/components/TopNav";
+import { FormatSelector } from "@/components/FormatSelector";
+import { EditorPanel } from "@/components/EditorPanel";
+import { SplashScreen } from "@/components/SplashScreen";
+import { LoginModal } from "@/components/LoginModal";
+import { useConverter } from "@/hooks/useConverter";
+
+const getAuthUserSnapshot = (): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = localStorage.getItem("json_converter_user");
+    if (!stored) return null;
+    const data = JSON.parse(stored);
+    return data?.user || null;
+  } catch {
+    return null;
+  }
+};
+
+const getAuthServerSnapshot = (): string | null => null;
+
+const getQuotaSnapshot = (): number => {
+  if (typeof window === "undefined") return 24;
+  const stored = localStorage.getItem("json_converter_quota");
+  if (!stored) return 24;
+  const parsed = parseInt(stored, 10);
+  return isNaN(parsed) ? 24 : parsed;
+};
+
+const getQuotaServerSnapshot = (): number => 24;
+
+const subscribeAuth = (callback: () => void) => {
+  window.addEventListener("storage", callback);
+  return () => window.removeEventListener("storage", callback);
+};
 
 export default function Home() {
+  const [showSplash, setShowSplash] = useState(true);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<"login" | "register">("login");
+  const currentUser = useSyncExternalStore(
+    subscribeAuth,
+    getAuthUserSnapshot,
+    getAuthServerSnapshot
+  );
+  const quotaUsed = useSyncExternalStore(
+    subscribeAuth,
+    getQuotaSnapshot,
+    getQuotaServerSnapshot
+  );
+
+  const {
+    jsonInput,
+    setJsonInput,
+    targetFormat,
+    setTargetFormat,
+    output,
+    error,
+    isLoading,
+    useBackend,
+    setUseBackend,
+    uploadedFileName,
+    setUploadedFileName,
+    handleFileUpload,
+    exportOutput,
+    convert,
+    clear,
+  } = useConverter();
+
+  const incrementQuota = () => {
+    if (typeof window !== "undefined") {
+      const current = getQuotaSnapshot();
+      localStorage.setItem("json_converter_quota", String(current + 1));
+      window.dispatchEvent(new Event("storage"));
+    }
+  };
+
+  const handleResetQuota = () => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("json_converter_quota", "0");
+      window.dispatchEvent(new Event("storage"));
+    }
+  };
+
+  const handleConvert = async () => {
+    const res = await convert();
+    if (res) {
+      incrementQuota();
+    }
+  };
+
+  const handleLogout = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("json_converter_user");
+      window.dispatchEvent(new Event("storage"));
+    }
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <>
+      {/* 1-second Splash Screen on app entry */}
+      {showSplash && (
+        <SplashScreen durationMs={1000} onFinish={() => setShowSplash(false)} />
+      )}
+
+      {/* Auth Modal (Login / Register) */}
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        initialMode={authModalMode}
+        onClose={() => setIsLoginModalOpen(false)}
+      />
+
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+        {/* TopNav Component */}
+        <TopNav
+          currentUser={currentUser}
+          onLogout={handleLogout}
+          onOpenLogin={() => {
+            setAuthModalMode("login");
+            setIsLoginModalOpen(true);
+          }}
+          onOpenRegister={() => {
+            setAuthModalMode("register");
+            setIsLoginModalOpen(true);
+          }}
+          useBackend={useBackend}
+          onToggleBackend={setUseBackend}
+          quotaUsed={quotaUsed}
+          quotaLimit={currentUser ? 100 : 25}
+          onResetQuota={handleResetQuota}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
+
+        <main className="flex-1 flex flex-col p-4 md:p-8 max-w-7xl mx-auto w-full">
+          {/* Toolbar */}
+          <FormatSelector
+            currentFormat={targetFormat}
+            onSelectFormat={setTargetFormat}
+            onConvert={handleConvert}
+            onClear={clear}
+            isLoading={isLoading}
+            onFileUpload={(file) => {
+              handleFileUpload(file);
+              incrementQuota();
+            }}
+            onExport={exportOutput}
+            hasOutput={Boolean(output)}
+          />
+
+          {/* Error Alert */}
+          {error && (
+            <div className="w-full mb-4 p-3 bg-red-950/60 border border-red-800 text-red-200 text-sm rounded-lg animate-fade-in flex items-center justify-between">
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* Workspace */}
+          <div className="w-full flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <EditorPanel
+              title="INPUT: JSON"
+              badge="Paste raw JSON"
+              value={jsonInput}
+              onChange={setJsonInput}
+              placeholder="Paste your JSON here or drop a .json file..."
+              fileName={uploadedFileName}
+              onClearFile={() => setUploadedFileName(null)}
+              onFileUpload={handleFileUpload}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+
+            <EditorPanel
+              title={`OUTPUT: ${targetFormat.toUpperCase()}`}
+              value={output}
+              readOnly
+              isOutput
+              placeholder={`Click 'Convert to ${targetFormat.toUpperCase()}' to view output...`}
+              onExport={exportOutput}
+              exportLabel={`Export ${targetFormat.toUpperCase()}`}
+            />
+          </div>
+        </main>
+      </div>
+    </>
   );
 }
